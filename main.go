@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,12 +16,7 @@ func main() {
 	httpin.UseGochiURLParam("path", chi.URLParam)
 
 	r := chi.NewRouter()
-
-	r.With(httpin.NewInput(IndexInput{})).
-		Get("/", WithErrorHandler(handleIndex))
-
-	r.With(httpin.NewInput(IndexInput{})).
-		Get("/{name}", WithErrorHandler(handleIndex))
+	r.Get("/{name}", WithErrorHandler(handleIndex))
 
 	http.ListenAndServe(":8080", r)
 }
@@ -31,7 +27,15 @@ func WithErrorHandler(h handlerWithError) http.HandlerFunc {
 	return func (w http.ResponseWriter, r *http.Request) {
 		err := h(w, r)
 
+		var invalidFieldError *httpin.InvalidFieldError
+		if errors.As(err, &invalidFieldError) {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(invalidFieldError)
+			return
+		}
+
 		if err != nil {
+			fmt.Printf("error: %+v\n", err)
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte("ruh-roh"))
 			return
@@ -55,7 +59,11 @@ type IndexInput struct {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) error {
-	input := r.Context().Value(httpin.Input).(*IndexInput)
+	var input IndexInput
+	if err := httpin.Decode(r, &input); err != nil {
+		return err
+	}
+
 	fmt.Printf("input struct: %+v\n", input)
 
 	if input.ShouldError {
