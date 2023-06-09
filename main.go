@@ -12,6 +12,7 @@ import (
 )
 
 type CustomBodyDecoderFunc func(src io.Reader, dst any) error
+
 func (fn CustomBodyDecoderFunc) Decode(src io.Reader, dst any) error {
 	return fn(src, dst)
 }
@@ -33,13 +34,14 @@ func main() {
 	r.Get("/{name}", WithErrorHandler(handleIndex))
 	r.Post("/{name}", WithErrorHandler(handleIndex))
 
-	http.ListenAndServe(":8080", r)
+	panic(http.ListenAndServe("localhost:8080", r))
 }
 
 // more-or-less the same custom error handler logic
 type handlerWithError func(w http.ResponseWriter, r *http.Request) error
+
 func WithErrorHandler(h handlerWithError) http.HandlerFunc {
-	return func (w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		err := h(w, r)
 
 		var invalidFieldError *httpin.InvalidFieldError
@@ -59,13 +61,13 @@ func WithErrorHandler(h handlerWithError) http.HandlerFunc {
 }
 
 type PaginationParams struct {
-	Page int `in:"query=page;default=0"`
+	Page     int `in:"query=page;default=0"`
 	PageSize int `in:"query=page_size;default=20"`
 }
 
 type User struct {
 	Name string `json:"name"`
-	Age int `json:"age"`
+	Age  int    `json:"age"`
 }
 
 type IndexInput struct {
