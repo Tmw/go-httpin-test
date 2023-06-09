@@ -4,19 +4,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/ggicci/httpin"
 	"github.com/go-chi/chi"
 )
 
+type CustomBodyDecoderFunc func(src io.Reader, dst any) error
+func (fn CustomBodyDecoderFunc) Decode(src io.Reader, dst any) error {
+	return fn(src, dst)
+}
+
 func main() {
 	fmt.Println("Heynow!")
 
 	httpin.UseGochiURLParam("path", chi.URLParam)
 
+	// Replace body json decoder with one that returns an error
+	// when it encounters unknown fields
+	httpin.ReplaceBodyDecoder("json", CustomBodyDecoderFunc(func(src io.Reader, dst any) error {
+		decoder := json.NewDecoder(src)
+		decoder.DisallowUnknownFields()
+		return decoder.Decode(dst)
+	}))
+
 	r := chi.NewRouter()
 	r.Get("/{name}", WithErrorHandler(handleIndex))
+	r.Post("/{name}", WithErrorHandler(handleIndex))
 
 	http.ListenAndServe(":8080", r)
 }
@@ -48,14 +63,19 @@ type PaginationParams struct {
 	PageSize int `in:"query=page_size;default=20"`
 }
 
+type User struct {
+	Name string `json:"name"`
+	Age int `json:"age"`
+}
+
 type IndexInput struct {
 	PaginationParams
 
-	// other fields in query params
-	ShouldError bool `in:"query=should_error;required"`
-
 	// URL params
 	Name string `in:"path=name"`
+
+	// Body
+	Payload *User `in:"body=json"`
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) error {
@@ -65,11 +85,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	fmt.Printf("input struct: %+v\n", input)
-
-	if input.ShouldError {
-		return errors.New("erroring")
-	}
-
+	fmt.Printf("payload: %+v\n", *input.Payload)
 	fmt.Fprint(w, "all good")
 
 	return nil
