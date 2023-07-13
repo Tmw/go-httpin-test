@@ -18,8 +18,6 @@ func (fn CustomBodyDecoderFunc) Decode(src io.Reader, dst any) error {
 }
 
 func main() {
-	fmt.Println("Heynow!")
-
 	httpin.UseGochiURLParam("path", chi.URLParam)
 
 	// Replace body json decoder with one that returns an error
@@ -88,7 +86,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) error {
 
 	fmt.Printf("input struct: %+v\n", input)
 	fmt.Printf("payload: %+v\n", *input.Payload)
-	fmt.Fprint(w, "all good")
+	fmt.Fprint(w, "OK")
 
 	return nil
 }
